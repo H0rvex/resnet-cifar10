@@ -25,6 +25,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--config", type=str, default=None, metavar="PATH",
         help="YAML config file; CLI flags override loaded values",
     )
+    p.add_argument(
+        "--resume", type=str, default=None, metavar="PATH",
+        help="Resume training from a checkpoint saved by this script",
+    )
     hints = typing.get_type_hints(Config)
     for f in dataclasses.fields(Config):
         flag = f"--{f.name.replace('_', '-')}"
@@ -52,18 +56,41 @@ def resolve_config(args: argparse.Namespace) -> Config:
     return Config(**cfg_dict)
 
 
-def setup_run(cfg: Config) -> tuple[str, str]:
+def setup_run(cfg: Config) -> tuple[str, str, str]:
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join("runs", ts)
     os.makedirs(run_dir, exist_ok=True)
-    checkpoint_path = os.path.join(run_dir, "best.pth")
     with open(os.path.join(run_dir, "config.yaml"), "w") as fh:
         yaml.dump(dataclasses.asdict(cfg), fh, default_flow_style=False, sort_keys=False)
-    return run_dir, checkpoint_path
+    return run_dir, os.path.join(run_dir, "best.pth"), os.path.join(run_dir, "last.pth")
 
 
-def main(cfg: Config) -> None:
-    run_dir, checkpoint_path = setup_run(cfg)
+def save_checkpoint(
+    path: str,
+    epoch: int,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+    best_acc: float,
+    cfg: Config,
+) -> None:
+    torch.save(
+        {
+            "epoch": epoch,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+            "best_acc": best_acc,
+            "config": dataclasses.asdict(cfg),
+            "torch_rng_state": torch.get_rng_state(),
+            "cuda_rng_state": torch.cuda.get_rng_state_all(),
+        },
+        path,
+    )
+
+
+def main(cfg: Config, resume: str | None = None) -> None:
+    run_dir, best_path, last_path = setup_run(cfg)
     print(f"Run dir: {run_dir}")
 
     set_seed(cfg.seed)
@@ -103,10 +130,20 @@ def main(cfg: Config) -> None:
     amp_enabled = cfg.use_amp and device.type == "cuda"
     scaler = torch.amp.GradScaler(device.type, enabled=amp_enabled)
 
-    logger = Logger(run_dir)
+    start_epoch = 1
     best_acc = 0.0
+    if resume is not None:
+        ckpt = torch.load(resume, map_location=device)
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        scheduler.load_state_dict(ckpt["scheduler"])
+        best_acc = ckpt["best_acc"]
+        start_epoch = ckpt["epoch"] + 1
+        print(f"Resumed from epoch {ckpt['epoch']} (best acc {best_acc:.2f}%)")
+
+    logger = Logger(run_dir)
     try:
-        for epoch in range(1, cfg.epochs + 1):
+        for epoch in range(start_epoch, cfg.epochs + 1):
             train_loss, imgs_per_sec = train_epoch(model, train_loader, optimizer, loss_fn, device, scaler)
             scheduler.step()
             test_acc, test_loss = evaluate(model, test_loader, device, loss_fn)
@@ -115,14 +152,15 @@ def main(cfg: Config) -> None:
 
             if test_acc > best_acc:
                 best_acc = test_acc
-                torch.save(model.state_dict(), checkpoint_path)
+                save_checkpoint(best_path, epoch, model, optimizer, scheduler, best_acc, cfg)
+            save_checkpoint(last_path, epoch, model, optimizer, scheduler, best_acc, cfg)
     finally:
         logger.close()
 
-    print(f"\nBest accuracy: {best_acc:.2f}%  (saved to {checkpoint_path})")
+    print(f"\nBest accuracy: {best_acc:.2f}%  (saved to {best_path})")
 
 
 if __name__ == "__main__":
     args = build_parser().parse_args()
     cfg = resolve_config(args)
-    main(cfg)
+    main(cfg, resume=args.resume)
