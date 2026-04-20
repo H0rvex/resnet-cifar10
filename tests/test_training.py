@@ -59,6 +59,7 @@ def test_evaluate_returns_acc_and_loss():
 
 def test_determinism():
     """Identical seeds must produce bit-exact loss across two independent runs."""
+
     def one_run() -> float:
         model, optimizer, loss_fn, scaler, device = _build(seed=42)
         loader = _make_loader(seed=7)

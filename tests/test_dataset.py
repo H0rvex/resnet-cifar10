@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
-from resnet_cifar10.dataset import _MEAN, _STD, eval_transform, get_dataloaders
+from resnet_cifar10.dataset import _MEAN, eval_transform, get_dataloaders
 
 _CIFAR10_DIR = os.path.join(".", "data", "cifar-10-batches-py")
 

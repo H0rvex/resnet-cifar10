@@ -1,6 +1,6 @@
 import torch
 
-from resnet_cifar10.model import ResNet, ResidualBlock
+from resnet_cifar10.model import ResidualBlock, ResNet
 
 _EXPECTED_PARAMS = 175_258
 
