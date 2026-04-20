@@ -11,12 +11,12 @@ import torch.nn as nn
 import yaml
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
-from config import Config
-from dataset import get_dataloaders
-from logger import Logger
-from model import ResNet
-from trainer import evaluate, train_epoch
-from utils.seeding import make_generator, set_seed
+from resnet_cifar10.config import Config
+from resnet_cifar10.dataset import get_dataloaders
+from resnet_cifar10.logger import Logger
+from resnet_cifar10.model import ResNet
+from resnet_cifar10.trainer import evaluate, train_epoch
+from resnet_cifar10.utils.seeding import make_generator, set_seed
 
 
 def build_parser() -> argparse.ArgumentParser:

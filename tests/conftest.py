@@ -1,4 +1,1 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Package is installed via `pip install -e .` — no sys.path manipulation needed.

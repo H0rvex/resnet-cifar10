@@ -10,7 +10,6 @@ artifacts/eval.json           -- all metrics as JSON
 import argparse
 import json
 import os
-import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,11 +19,9 @@ import seaborn as sns
 import torch
 from thop import profile as thop_profile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from config import Config
-from dataset import get_dataloaders
-from model import ResNet
+from resnet_cifar10.config import Config
+from resnet_cifar10.dataset import get_dataloaders
+from resnet_cifar10.model import ResNet
 
 CLASSES = (
     "airplane", "automobile", "bird", "cat", "deer",

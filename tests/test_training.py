@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from model import ResNet
-from trainer import evaluate, train_epoch
-from utils.seeding import set_seed
+from resnet_cifar10.model import ResNet
+from resnet_cifar10.trainer import evaluate, train_epoch
+from resnet_cifar10.utils.seeding import set_seed
 
 _N = 256
 _BATCH = 256  # single batch so loss-decrease is reliable

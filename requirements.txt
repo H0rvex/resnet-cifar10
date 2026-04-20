@@ -1,9 +1,4 @@
-torch>=2.7.0
-torchvision>=0.22.0
-numpy
-pillow
-pyyaml
-tensorboard
-matplotlib
-seaborn
-thop
+# Dependencies are declared in pyproject.toml.
+# Install the package (and all deps) with:
+#   pip install -e .
+-e .

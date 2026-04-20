@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from utils.seeding import worker_init_fn
+from resnet_cifar10.utils.seeding import worker_init_fn
 
 _MEAN = (0.4914, 0.4822, 0.4465)
 _STD = (0.2023, 0.1994, 0.2010)

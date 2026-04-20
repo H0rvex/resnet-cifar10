@@ -1,0 +1,13 @@
+# ResNet-20 on CIFAR-10 — SGD + cosine recipe (He et al. 2015 baseline)
+epochs: 200
+batch_size: 128
+lr: 0.1
+momentum: 0.9
+weight_decay: 0.0005
+nesterov: true
+label_smoothing: 0.1
+warmup_epochs: 5
+warmup_start_factor: 0.1
+use_amp: true
+seed: 42
+num_workers: 4
