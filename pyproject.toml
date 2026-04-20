@@ -18,6 +18,9 @@ dependencies = [
     "thop",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/resnet_cifar10"]
 

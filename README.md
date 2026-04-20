@@ -1,5 +1,7 @@
 # ResNet for CIFAR-10
 
+[![CI](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml/badge.svg)](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml)
+
 Simplified ResNet implementation from scratch in PyTorch, inspired by He et al. 2015 ("Deep Residual Learning for Image Recognition").
 
 **Result: 84.6% top-1 accuracy on the CIFAR-10 test set.**
