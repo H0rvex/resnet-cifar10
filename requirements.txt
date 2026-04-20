@@ -4,3 +4,6 @@ numpy
 pillow
 pyyaml
 tensorboard
+matplotlib
+seaborn
+thop
