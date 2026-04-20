@@ -1,3 +1,16 @@
-data/
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+# Local venvs
+.venv/
+venv/
+# Local data + training outputs
+data/
+runs/
+# OS/editor
+.DS_Store
+.vscode/
+
+RESNET_REFACTOR.md
