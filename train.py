@@ -13,6 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from config import Config
 from dataset import get_dataloaders
+from logger import Logger
 from model import ResNet
 from trainer import evaluate, train_epoch
 from utils.seeding import make_generator, set_seed
@@ -102,17 +103,21 @@ def main(cfg: Config) -> None:
     amp_enabled = cfg.use_amp and device.type == "cuda"
     scaler = torch.amp.GradScaler(device.type, enabled=amp_enabled)
 
+    logger = Logger(run_dir)
     best_acc = 0.0
-    for epoch in range(1, cfg.epochs + 1):
-        loss = train_epoch(model, train_loader, optimizer, loss_fn, device, scaler)
-        scheduler.step()
-        acc = evaluate(model, test_loader, device)
-        lr_now = optimizer.param_groups[0]["lr"]
-        print(f"Epoch {epoch:>3}/{cfg.epochs}  lr={lr_now:.4f}  loss={loss:.4f}  acc={acc:.2f}%")
+    try:
+        for epoch in range(1, cfg.epochs + 1):
+            train_loss, imgs_per_sec = train_epoch(model, train_loader, optimizer, loss_fn, device, scaler)
+            scheduler.step()
+            test_acc, test_loss = evaluate(model, test_loader, device, loss_fn)
+            lr_now = optimizer.param_groups[0]["lr"]
+            logger.log(epoch, cfg.epochs, train_loss, test_loss, test_acc, lr_now, imgs_per_sec)
 
-        if acc > best_acc:
-            best_acc = acc
-            torch.save(model.state_dict(), checkpoint_path)
+            if test_acc > best_acc:
+                best_acc = test_acc
+                torch.save(model.state_dict(), checkpoint_path)
+    finally:
+        logger.close()
 
     print(f"\nBest accuracy: {best_acc:.2f}%  (saved to {checkpoint_path})")
 
