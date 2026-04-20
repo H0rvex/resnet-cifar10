@@ -1,9 +1,14 @@
 """Entry point: train ResNet on CIFAR-10 and save the best checkpoint."""
 
 import argparse
+import dataclasses
+import datetime
+import os
+import typing
 
 import torch
 import torch.nn as nn
+import yaml
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from config import Config
@@ -13,13 +18,53 @@ from trainer import evaluate, train_epoch
 from utils.seeding import make_generator, set_seed
 
 
-def parse_args() -> argparse.Namespace:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Train ResNet on CIFAR-10")
-    p.add_argument("--seed", type=int, default=None, help="Random seed (default: Config.seed = 42)")
-    return p.parse_args()
+    p.add_argument(
+        "--config", type=str, default=None, metavar="PATH",
+        help="YAML config file; CLI flags override loaded values",
+    )
+    hints = typing.get_type_hints(Config)
+    for f in dataclasses.fields(Config):
+        flag = f"--{f.name.replace('_', '-')}"
+        ftype = hints[f.name]
+        if ftype is bool:
+            p.add_argument(flag, default=None, action=argparse.BooleanOptionalAction)
+        else:
+            p.add_argument(flag, type=ftype, default=None, metavar=ftype.__name__.upper())
+    return p
+
+
+def resolve_config(args: argparse.Namespace) -> Config:
+    cfg_dict: dict = {f.name: f.default for f in dataclasses.fields(Config)}
+
+    if args.config is not None:
+        with open(args.config) as fh:
+            yaml_cfg = yaml.safe_load(fh) or {}
+        cfg_dict.update(yaml_cfg)
+
+    for f in dataclasses.fields(Config):
+        val = getattr(args, f.name, None)
+        if val is not None:
+            cfg_dict[f.name] = val
+
+    return Config(**cfg_dict)
+
+
+def setup_run(cfg: Config) -> tuple[str, str]:
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = os.path.join("runs", ts)
+    os.makedirs(run_dir, exist_ok=True)
+    checkpoint_path = os.path.join(run_dir, "best.pth")
+    with open(os.path.join(run_dir, "config.yaml"), "w") as fh:
+        yaml.dump(dataclasses.asdict(cfg), fh, default_flow_style=False, sort_keys=False)
+    return run_dir, checkpoint_path
 
 
 def main(cfg: Config) -> None:
+    run_dir, checkpoint_path = setup_run(cfg)
+    print(f"Run dir: {run_dir}")
+
     set_seed(cfg.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -67,14 +112,12 @@ def main(cfg: Config) -> None:
 
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.state_dict(), cfg.checkpoint_path)
+            torch.save(model.state_dict(), checkpoint_path)
 
-    print(f"\nBest accuracy: {best_acc:.2f}%  (saved to {cfg.checkpoint_path})")
+    print(f"\nBest accuracy: {best_acc:.2f}%  (saved to {checkpoint_path})")
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    cfg = Config()
-    if args.seed is not None:
-        cfg.seed = args.seed
+    args = build_parser().parse_args()
+    cfg = resolve_config(args)
     main(cfg)

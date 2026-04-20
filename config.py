@@ -6,7 +6,7 @@ class Config:
     # Data
     data_dir: str = "./data"
     batch_size: int = 128
-    num_workers: int = 0  # 0 is required on Windows
+    num_workers: int = 4
 
     # Model
     num_classes: int = 10
@@ -28,6 +28,3 @@ class Config:
 
     # Reproducibility
     seed: int = 42
-
-    # Checkpointing
-    checkpoint_path: str = "checkpoint.pth"

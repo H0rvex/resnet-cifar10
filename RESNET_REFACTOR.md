@@ -28,12 +28,12 @@ Each task is tagged with two labels:
 
 Rules of thumb used:
 
-| Category    | Meaning                                                        | Default model |
-|-------------|----------------------------------------------------------------|---------------|
-| mechanical  | Rote edits, boilerplate, formatting, renames, obvious splits   | sonnet        |
-| structural  | Reorganizing layout, wiring modules together, standard pattern | sonnet        |
-| content     | Writing docs, tests, READMEs, explanations                     | sonnet (opus for README strategy / narrative) |
-| decision    | Tradeoffs, hyperparameter strategy, eval design, what to cut   | opus          |
+| Category   | Meaning                                                        | Default model                                 |
+| ---------- | -------------------------------------------------------------- | --------------------------------------------- |
+| mechanical | Rote edits, boilerplate, formatting, renames, obvious splits   | sonnet                                        |
+| structural | Reorganizing layout, wiring modules together, standard pattern | sonnet                                        |
+| content    | Writing docs, tests, READMEs, explanations                     | sonnet (opus for README strategy / narrative) |
+| decision   | Tradeoffs, hyperparameter strategy, eval design, what to cut   | opus                                          |
 
 Use sonnet by default. Reach for opus only when the task requires a judgment
 call whose cost (wasted GPU hours, bad framing, hidden-bias eval) is larger
@@ -46,21 +46,21 @@ than the cost of the extra tokens.
 Phases are ordered by leverage per hour. Do not reorder — every later phase
 assumes the prior one landed. Each phase maps to one or more commits.
 
-| # | Phase                            | Cat.        | Model  | Est. time | Commit(s) |
-|---|----------------------------------|-------------|--------|-----------|-----------|
-| 1 | Training recipe → paper baseline | decision    | opus   | 4–6 h GPU | 1         |
-| 2 | Seeding & determinism            | mechanical  | sonnet | 45 min    | 1         |
-| 3 | Config system (argparse + YAML)  | structural  | sonnet | 1 h       | 1         |
-| 4 | Logging (JSONL + TensorBoard)    | structural  | sonnet | 1.5 h     | 1         |
-| 5 | Checkpoint format + resume       | mechanical  | sonnet | 45 min    | 1         |
-| 6 | Mixed precision + throughput log | mechanical  | sonnet | 30 min    | 1         |
-| 7 | Evaluation script                | content     | opus*  | 1.5 h     | 1         |
-| 8 | Tests                            | content     | sonnet | 1.5 h     | 1         |
-| 9 | Project layout + pyproject + ruff| structural  | sonnet | 1 h       | 1         |
-| 10| CI (ruff + pytest CPU)           | mechanical  | sonnet | 30 min    | 1         |
-| 11| README rewrite                   | content     | opus   | 2 h       | 1         |
-| 12| Artifacts: curves, conf. matrix  | content     | sonnet | 45 min    | 1         |
-| 13| Final pass: dead code, polish    | mechanical  | sonnet | 30 min    | 1         |
+| #   | Phase                             | Cat.       | Model  | Est. time | Commit(s) |
+| --- | --------------------------------- | ---------- | ------ | --------- | --------- |
+| 1   | Training recipe → paper baseline  | decision   | opus   | 4–6 h GPU | 1         |
+| 2   | Seeding & determinism             | mechanical | sonnet | 45 min    | 1         |
+| 3   | Config system (argparse + YAML)   | structural | sonnet | 1 h       | 1         |
+| 4   | Logging (JSONL + TensorBoard)     | structural | sonnet | 1.5 h     | 1         |
+| 5   | Checkpoint format + resume        | mechanical | sonnet | 45 min    | 1         |
+| 6   | Mixed precision + throughput log  | mechanical | sonnet | 30 min    | 1         |
+| 7   | Evaluation script                 | content    | opus*  | 1.5 h     | 1         |
+| 8   | Tests                             | content    | sonnet | 1.5 h     | 1         |
+| 9   | Project layout + pyproject + ruff | structural | sonnet | 1 h       | 1         |
+| 10  | CI (ruff + pytest CPU)            | mechanical | sonnet | 30 min    | 1         |
+| 11  | README rewrite                    | content    | opus   | 2 h       | 1         |
+| 12  | Artifacts: curves, conf. matrix   | content    | sonnet | 45 min    | 1         |
+| 13  | Final pass: dead code, polish     | mechanical | sonnet | 30 min    | 1         |
 
 `*` opus on the design of what metrics to report (per-class accuracy,
 confusion matrix, calibration?), sonnet on the implementation.
@@ -368,21 +368,21 @@ Prefer `feat:` / `fix:` / `refactor:` / `docs:` / `test:` / `ci:` /
 
 ## Progress log (update as you go)
 
-| Phase | Status    | Commit SHA | Notes |
-|-------|-----------|------------|-------|
-| 1     | ⬜ todo   |            |       |
-| 2     | ⬜ todo   |            |       |
-| 3     | ⬜ todo   |            |       |
-| 4     | ⬜ todo   |            |       |
-| 5     | ⬜ todo   |            |       |
-| 6     | ⬜ todo   |            |       |
-| 7     | ⬜ todo   |            |       |
-| 8     | ⬜ todo   |            |       |
-| 9     | ⬜ todo   |            |       |
-| 10    | ⬜ todo   |            |       |
-| 11    | ⬜ todo   |            |       |
-| 12    | ⬜ todo   |            |       |
-| 13    | ⬜ todo   |            |       |
+| Phase | Status        | Commit SHA | Notes |
+| ----- | ------------- | ---------- | ----- |
+| 1     | ✅ done        |            |       |
+| 2     | ✅ done        |            |       |
+| 3     | 🟨 in progress |            |       |
+| 4     | ⬜ todo        |            |       |
+| 5     | ⬜ todo        |            |       |
+| 6     | ⬜ todo        |            |       |
+| 7     | ⬜ todo        |            |       |
+| 8     | ⬜ todo        |            |       |
+| 9     | ⬜ todo        |            |       |
+| 10    | ⬜ todo        |            |       |
+| 11    | ⬜ todo        |            |       |
+| 12    | ⬜ todo        |            |       |
+| 13    | ⬜ todo        |            |       |
 
 Legend: ⬜ todo · 🟨 in progress · ✅ done · ❌ abandoned (note reason)
 
