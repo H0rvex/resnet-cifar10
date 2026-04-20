@@ -22,7 +22,9 @@ def train_epoch(
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
-        with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=scaler.is_enabled()):
+        with torch.amp.autocast(
+            device_type=device.type, dtype=torch.float16, enabled=scaler.is_enabled()
+        ):
             loss = loss_fn(model(images), labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)

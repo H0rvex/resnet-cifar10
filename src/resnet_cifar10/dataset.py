@@ -7,17 +7,21 @@ from resnet_cifar10.utils.seeding import worker_init_fn
 _MEAN = (0.4914, 0.4822, 0.4465)
 _STD = (0.2023, 0.1994, 0.2010)
 
-train_transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomCrop(32, padding=4),
-    transforms.ToTensor(),
-    transforms.Normalize(_MEAN, _STD),
-])
+train_transform = transforms.Compose(
+    [
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ToTensor(),
+        transforms.Normalize(_MEAN, _STD),
+    ]
+)
 
-eval_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(_MEAN, _STD),
-])
+eval_transform = transforms.Compose(
+    [
+        transforms.ToTensor(),
+        transforms.Normalize(_MEAN, _STD),
+    ]
+)
 
 
 def get_dataloaders(
@@ -31,8 +35,12 @@ def get_dataloaders(
     Pass a seeded generator (from utils.seeding.make_generator) to make
     shuffle order and worker augmentation deterministic across runs.
     """
-    train_dataset = datasets.CIFAR10(root=data_dir, train=True, download=True, transform=train_transform)
-    test_dataset = datasets.CIFAR10(root=data_dir, train=False, download=True, transform=eval_transform)
+    train_dataset = datasets.CIFAR10(
+        root=data_dir, train=True, download=True, transform=train_transform
+    )
+    test_dataset = datasets.CIFAR10(
+        root=data_dir, train=False, download=True, transform=eval_transform
+    )
 
     train_loader = DataLoader(
         train_dataset,

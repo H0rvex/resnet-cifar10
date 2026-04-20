@@ -22,11 +22,17 @@ from resnet_cifar10.utils.seeding import make_generator, set_seed
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Train ResNet on CIFAR-10")
     p.add_argument(
-        "--config", type=str, default=None, metavar="PATH",
+        "--config",
+        type=str,
+        default=None,
+        metavar="PATH",
         help="YAML config file; CLI flags override loaded values",
     )
     p.add_argument(
-        "--resume", type=str, default=None, metavar="PATH",
+        "--resume",
+        type=str,
+        default=None,
+        metavar="PATH",
         help="Resume training from a checkpoint saved by this script",
     )
     hints = typing.get_type_hints(Config)
@@ -98,7 +104,9 @@ def main(cfg: Config, resume: str | None = None) -> None:
     print(f"Using device: {device}")
 
     generator = make_generator(cfg.seed)
-    train_loader, test_loader = get_dataloaders(cfg.data_dir, cfg.batch_size, cfg.num_workers, generator)
+    train_loader, test_loader = get_dataloaders(
+        cfg.data_dir, cfg.batch_size, cfg.num_workers, generator
+    )
 
     model = ResNet(num_classes=cfg.num_classes).to(device)
     optimizer = torch.optim.SGD(
@@ -144,7 +152,9 @@ def main(cfg: Config, resume: str | None = None) -> None:
     logger = Logger(run_dir)
     try:
         for epoch in range(start_epoch, cfg.epochs + 1):
-            train_loss, imgs_per_sec = train_epoch(model, train_loader, optimizer, loss_fn, device, scaler)
+            train_loss, imgs_per_sec = train_epoch(
+                model, train_loader, optimizer, loss_fn, device, scaler
+            )
             scheduler.step()
             test_acc, test_loss = evaluate(model, test_loader, device, loss_fn)
             lr_now = optimizer.param_groups[0]["lr"]
