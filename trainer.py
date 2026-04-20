@@ -16,9 +16,9 @@ def train_epoch(
     """Run one training epoch. Returns (mean_loss, imgs_per_sec)."""
     model.train()
     total_loss = 0.0
-    n_samples = 0
-    t0 = time.perf_counter()
-    for images, labels in loader:
+    t_start: float | None = None
+    timed_samples = 0
+    for i, (images, labels) in enumerate(loader):
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
@@ -28,9 +28,14 @@ def train_epoch(
         scaler.step(optimizer)
         scaler.update()
         total_loss += loss.item()
-        n_samples += images.size(0)
-    elapsed = time.perf_counter() - t0
-    return total_loss / len(loader), n_samples / elapsed
+        # Start clock after first batch so CUDA kernel launch overhead is excluded.
+        if i == 0:
+            t_start = time.perf_counter()
+        else:
+            timed_samples += images.size(0)
+    elapsed = (time.perf_counter() - t_start) if t_start is not None else 1.0
+    imgs_per_sec = timed_samples / elapsed if timed_samples > 0 else 0.0
+    return total_loss / len(loader), imgs_per_sec
 
 
 @torch.no_grad()

@@ -33,15 +33,25 @@ resnet/
 - Projection shortcuts (1×1 conv + BN) when dimensions change
 - Global average pooling → 10-class linear head
 
+## Results
+
+| Model | Params | Top-1 | He et al. | Δ | Throughput |
+|-------|--------|-------|-----------|---|------------|
+| ResNet-20 | 0.27 M | TBD | 91.25% | TBD | TBD img/s |
+
+*Trained with SGD + cosine LR, label smoothing 0.1, mixed precision (fp16), seed 42.*
+*Throughput measured on batches 2–N per epoch to exclude CUDA warmup.*
+
 ## Training
 
 | Hyperparameter | Value |
 |---|---|
-| Optimizer | Adam |
-| Learning rate | 1e-3 |
-| Weight decay | 1e-4 |
-| LR schedule | StepLR ×0.1 every 15 epochs |
-| Epochs | 30 |
+| Optimizer | SGD momentum=0.9, nesterov |
+| Learning rate | 0.1 → cosine annealing (5-epoch linear warmup) |
+| Weight decay | 5e-4 |
+| Label smoothing | 0.1 |
+| Mixed precision | fp16 autocast + GradScaler |
+| Epochs | 200 |
 | Batch size | 128 |
 | Augmentation | RandomHorizontalFlip, RandomCrop(32, padding=4) |
 
