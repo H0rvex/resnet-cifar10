@@ -1,8 +1,7 @@
 """Entry point: train ResNet on CIFAR-10 and save the best checkpoint."""
 
-import random
+import argparse
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
@@ -11,16 +10,13 @@ from config import Config
 from dataset import get_dataloaders
 from model import ResNet
 from trainer import evaluate, train_epoch
+from utils.seeding import make_generator, set_seed
 
 
-def set_seed(seed: int) -> None:
-    """Seed Python/NumPy/PyTorch RNGs and force deterministic cuDNN kernels."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Train ResNet on CIFAR-10")
+    p.add_argument("--seed", type=int, default=None, help="Random seed (default: Config.seed = 42)")
+    return p.parse_args()
 
 
 def main(cfg: Config) -> None:
@@ -28,7 +24,8 @@ def main(cfg: Config) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    train_loader, test_loader = get_dataloaders(cfg.data_dir, cfg.batch_size, cfg.num_workers)
+    generator = make_generator(cfg.seed)
+    train_loader, test_loader = get_dataloaders(cfg.data_dir, cfg.batch_size, cfg.num_workers, generator)
 
     model = ResNet(num_classes=cfg.num_classes).to(device)
     optimizer = torch.optim.SGD(
@@ -76,4 +73,8 @@ def main(cfg: Config) -> None:
 
 
 if __name__ == "__main__":
-    main(Config())
+    args = parse_args()
+    cfg = Config()
+    if args.seed is not None:
+        cfg.seed = args.seed
+    main(cfg)
