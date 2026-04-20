@@ -9,16 +9,20 @@ def train_epoch(
     optimizer: torch.optim.Optimizer,
     loss_fn: nn.Module,
     device: torch.device,
+    scaler: torch.amp.GradScaler,
 ) -> float:
-    """Run one training epoch. Returns mean loss over all batches."""
+    """Run one training epoch with automatic mixed precision. Returns mean loss over all batches."""
     model.train()
     total_loss = 0.0
     for images, labels in loader:
-        images, labels = images.to(device), labels.to(device)
-        optimizer.zero_grad()
-        loss = loss_fn(model(images), labels)
-        loss.backward()
-        optimizer.step()
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
+        optimizer.zero_grad(set_to_none=True)
+        with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=scaler.is_enabled()):
+            loss = loss_fn(model(images), labels)
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         total_loss += loss.item()
     return total_loss / len(loader)
 
@@ -33,7 +37,8 @@ def evaluate(
     model.eval()
     correct = total = 0
     for images, labels in loader:
-        images, labels = images.to(device), labels.to(device)
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
         predicted = model(images).argmax(dim=1)
         correct += (predicted == labels).sum().item()
         total += labels.size(0)
