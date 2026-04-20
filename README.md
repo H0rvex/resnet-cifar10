@@ -3,13 +3,13 @@
 [![CI](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml/badge.svg)](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
-ResNet-20 reimplemented from scratch in PyTorch, reproducing the [He et al. (2015)](https://arxiv.org/abs/1512.03385) CIFAR-10 result (**TBD% top-1**) on a single consumer GPU.
+ResNet-20 reimplemented from scratch in PyTorch, reproducing the [He et al. (2015)](https://arxiv.org/abs/1512.03385) CIFAR-10 result (**91.67% top-1**) on a single consumer GPU.
 
 ## Results
 
-| Model     | Params | FLOPs | Top-1    | He et al. | Δ    | Throughput    |
-| --------- | ------ | ----- | -------- | --------- | ---- | ------------- |
-| ResNet-20 | 0.27 M | TBD   | **TBD%** | 91.25%    | TBD  | TBD imgs/sec  |
+| Model     | Params  | FLOPs  | Top-1      | He et al. | Δ     | Throughput         |
+| --------- | ------- | ------ | ---------- | --------- | ----- | ------------------ |
+| ResNet-20 | 0.175 M | 54.4 M | **91.67%** | 91.25%    | +0.42 | 5170 ± 45 imgs/sec |
 
 *SGD + momentum 0.9 + Nesterov, weight decay 5e-4, linear warmup 5 epochs → cosine anneal to 0 over 200 epochs, label smoothing 0.1, fp16 autocast. Seed 42. Throughput excludes first-batch warmup.*
 
@@ -28,9 +28,9 @@ Results reproduce bitwise on the same GPU architecture with `--seed 42`.
 
 ## Hardware
 
-| GPU | VRAM | Epoch time | Total wall-clock |
-| --- | ---- | ---------- | ---------------- |
-| TBD | TBD  | TBD        | TBD              |
+| GPU      | VRAM  | Epoch time | Total wall-clock |
+| -------- | ----- | ---------- | ---------------- |
+| Tesla T4 | 16 GB | 11.4 s     | ~38.0 min        |
 
 ## Architecture
 
