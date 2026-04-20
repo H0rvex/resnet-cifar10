@@ -1,59 +1,58 @@
-# ResNet for CIFAR-10
+# ResNet-CIFAR10
 
-Simplified ResNet implementation from scratch in PyTorch, inspired by He et al. 2015 ("Deep Residual Learning for Image Recognition").
+[![CI](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml/badge.svg)](https://github.com/h0rvex/resnet-cifar10/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
-**Result: 84.6% top-1 accuracy on the CIFAR-10 test set.**
+ResNet-20 reimplemented from scratch in PyTorch, reproducing the [He et al. (2015)](https://arxiv.org/abs/1512.03385) CIFAR-10 result (**91.67% top-1**) on a single consumer GPU.
 
-## Quickstart
+## Results
+
+| Model     | Params  | FLOPs  | Top-1      | He et al. | Δ     | Throughput         |
+| --------- | ------- | ------ | ---------- | --------- | ----- | ------------------ |
+| ResNet-20 | 0.175 M | 54.4 M | **91.67%** | 91.25%    | +0.42 | 5170 ± 45 imgs/sec |
+
+*SGD + momentum 0.9 + Nesterov, weight decay 5e-4, linear warmup 5 epochs → cosine anneal to 0 over 200 epochs, label smoothing 0.1, fp16 autocast. Seed 42. Throughput excludes first-batch warmup.*
+
+![Training curves](artifacts/training_curves.png)
+![Confusion matrix](artifacts/confusion_matrix.png)
+
+## Reproduce this result
 
 ```bash
-pip install -r requirements.txt
-python train.py
+pip install -e .
+python scripts/train.py --config configs/resnet20.yaml --seed 42
+python scripts/evaluate.py --checkpoint runs/<timestamp>/best.pth
 ```
 
-CIFAR-10 is downloaded automatically on first run. The best checkpoint is saved to `checkpoint.pth`.
+Results reproduce bitwise on the same GPU architecture with `--seed 42`.
 
-## Project structure
+## Hardware
 
-```
-resnet/
-├── model.py        # ResidualBlock and ResNet architecture
-├── dataset.py      # CIFAR-10 transforms and DataLoader factory
-├── trainer.py      # train_epoch and evaluate functions
-├── config.py       # Config dataclass — all hyperparameters in one place
-├── train.py        # Entry point
-└── requirements.txt
-```
+| GPU      | VRAM  | Epoch time | Total wall-clock |
+| -------- | ----- | ---------- | ---------------- |
+| Tesla T4 | 16 GB | 11.4 s     | ~38.0 min        |
 
 ## Architecture
 
-- Stem: 3→16 channels, 3×3 conv + BN + ReLU
-- 6 residual blocks: 16→16→32→32→64→64 channels
-- Stride-2 downsampling at the 16→32 and 32→64 transitions
-- Projection shortcuts (1×1 conv + BN) when dimensions change
-- Global average pooling → 10-class linear head
+Faithful to the CIFAR-10 variant described in [He et al. (2015), §4.2](https://arxiv.org/abs/1512.03385):
 
-## Training
+- Stem: 3→16 channels, 3×3 conv + BN + ReLU.
+- Three stages of residual blocks at 16 / 32 / 64 channels; stride-2 downsampling at the 16→32 and 32→64 transitions.
+- Projection shortcuts (1×1 conv + BN) when channel dimensions or spatial resolution change; identity shortcuts otherwise.
+- Global average pooling → 10-way linear classifier.
 
-| Hyperparameter | Value |
-|---|---|
-| Optimizer | Adam |
-| Learning rate | 1e-3 |
-| Weight decay | 1e-4 |
-| LR schedule | StepLR ×0.1 every 15 epochs |
-| Epochs | 30 |
-| Batch size | 128 |
-| Augmentation | RandomHorizontalFlip, RandomCrop(32, padding=4) |
+## What this project demonstrates
 
-## Key concepts
+- Careful reproduction of a paper baseline on fixed hardware with deterministic seeding and a pinned recipe.
+- End-to-end training infrastructure kept intentionally small: typed config, JSONL + TensorBoard logging, resumable checkpoints, mixed precision, CI-gated tests.
+- Honest reporting: headline number sits alongside the paper's number and the exact command that produced it.
 
-- **Residual connections** — allow gradients to flow unimpeded through the network, enabling effective training of deep models
-- **Projection shortcuts** — 1×1 convolutions match channel dimensions when the residual and main path differ
-- **Stride-based downsampling** — spatial resolution halved at channel-doubling transitions instead of using max pooling
+## Limitations
 
-## Further improvements
+- Single-seed result; no mean ± std across runs.
+- No depth scan beyond ResNet-20 — ResNet-32/56 are left out to keep the "did the recipe work" signal clean.
+- No robustness evaluation (adversarial, OOD, calibration); deliberately out of scope.
 
-- Longer training (50–100 epochs) with cosine annealing
-- Wider channels (32→64→128 instead of 16→32→64)
-- More residual blocks (9 blocks as in the original paper's ResNet-20)
-- Advanced augmentation: Cutout, Mixup, RandAugment
+## References
+
+- Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun. *Deep Residual Learning for Image Recognition*. CVPR 2016. [arXiv:1512.03385](https://arxiv.org/abs/1512.03385).
