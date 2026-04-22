@@ -1,7 +1,10 @@
-.PHONY: train eval test lint fmt clean
+.PHONY: train eval multi-seed test lint fmt clean
 
 train:
 	python scripts/train.py --config configs/resnet20.yaml
+
+multi-seed:
+	python scripts/multi_seed.py --config configs/resnet20.yaml
 
 eval:
 	@[ "$(CHECKPOINT)" ] || { echo "Usage: make eval CHECKPOINT=runs/.../best.pth"; exit 1; }
