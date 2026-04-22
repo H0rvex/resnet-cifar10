@@ -22,6 +22,7 @@ def train_epoch(
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
+        # Autocast is a no-op when GradScaler is disabled (CPU CI and non-CUDA hosts).
         with torch.amp.autocast(
             device_type=device.type, dtype=torch.float16, enabled=scaler.is_enabled()
         ):
