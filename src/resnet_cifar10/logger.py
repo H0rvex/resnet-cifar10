@@ -7,9 +7,11 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class Logger:
-    def __init__(self, run_dir: str) -> None:
+    def __init__(self, run_dir: str, *, append_metrics: bool = False) -> None:
         root = Path(run_dir)
-        self._jsonl = open(root / "metrics.jsonl", "w")
+        root.mkdir(parents=True, exist_ok=True)
+        mode = "a" if append_metrics else "w"
+        self._jsonl = open(root / "metrics.jsonl", mode, encoding="utf-8")
         self._tb = SummaryWriter(log_dir=str(root / "tb"))
 
     def log(

@@ -29,6 +29,8 @@ python scripts/evaluate.py --checkpoint runs/<timestamp>/best.pth
 
 Each run writes `runs/<timestamp>/config.yaml`, `metrics.jsonl`, TensorBoard logs under `tb/`, **`run_info.json`** (config + provenance), and `best.pth` / `last.pth`. Checkpoints store the same provenance dict for traceability.
 
+**Resume:** `python scripts/train.py --config configs/resnet20.yaml --resume runs/<timestamp>/last.pth` continues in **that run’s directory** (appends `metrics.jsonl`, keeps TensorBoard in `tb/`). The current config’s `model_depth` and `num_classes` must match the checkpoint (validated before load). PyTorch (and CUDA) RNG state saved in the checkpoint is restored after loading weights.
+
 **Legacy checkpoints** saved before `model_depth` was added are still supported: `scripts/evaluate.py` infers depth from the weight tensor layout (so ResNet-14 weights load correctly).
 
 Determinism: same seed and GPU architecture should give bitwise-identical training trajectories where PyTorch and cuDNN allow it (`warn_only` deterministic mode is enabled).

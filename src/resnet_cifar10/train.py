@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, LRScheduler, S
 from resnet_cifar10.config import Config
 from resnet_cifar10.dataset import get_dataloaders
 from resnet_cifar10.logger import Logger
-from resnet_cifar10.model import make_resnet_cifar
+from resnet_cifar10.model import infer_model_depth_from_state_dict, make_resnet_cifar
 from resnet_cifar10.provenance import collect_run_provenance, write_run_info
 from resnet_cifar10.trainer import evaluate, train_epoch
 from resnet_cifar10.utils.seeding import make_generator, set_seed
@@ -49,7 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         metavar="PATH",
-        help="Resume training from a checkpoint saved by this script",
+        help=(
+            "Resume from a checkpoint; continues in that run's directory "
+            "(appends metrics.jsonl, overwrites best/last.pth)"
+        ),
     )
     hints = typing.get_type_hints(Config)
     for f in dataclasses.fields(Config):
@@ -106,6 +109,64 @@ def setup_run(cfg: Config) -> tuple[str, str, str]:
     return run_dir, os.path.join(run_dir, "best.pth"), os.path.join(run_dir, "last.pth")
 
 
+def prepare_run_paths(cfg: Config, resume: str | None) -> tuple[str, str, str, bool]:
+    """Return ``(run_dir, best_path, last_path, is_new_run)``.
+
+    When ``resume`` is set, training continues in the checkpoint's directory (same
+    ``metrics.jsonl`` / TensorBoard folder); no new timestamped run is created.
+    """
+    if resume is None:
+        run_dir, best_path, last_path = setup_run(cfg)
+        return run_dir, best_path, last_path, True
+    run_dir = os.path.dirname(os.path.abspath(resume))
+    if not os.path.isdir(run_dir):
+        raise ValueError(f"Resume path directory does not exist: {run_dir}")
+    best_path = os.path.join(run_dir, "best.pth")
+    last_path = os.path.join(run_dir, "last.pth")
+    return run_dir, best_path, last_path, False
+
+
+def validate_checkpoint_against_config(ckpt: dict, cfg: Config) -> None:
+    """Ensure architecture fields in ``cfg`` match the checkpoint before loading state."""
+    if "model" not in ckpt:
+        raise ValueError("Checkpoint is missing required key 'model'")
+    sd = ckpt["model"]
+    raw = ckpt.get("config") or {}
+    inferred_depth = infer_model_depth_from_state_dict(sd)
+    if "model_depth" in raw and int(raw["model_depth"]) != inferred_depth:
+        raise ValueError(
+            f"Checkpoint config model_depth={raw['model_depth']} does not match "
+            f"weights (inferred depth {inferred_depth})"
+        )
+    ckpt_depth = inferred_depth
+    if cfg.model_depth != ckpt_depth:
+        raise ValueError(
+            f"model_depth mismatch: current config has {cfg.model_depth}, "
+            f"checkpoint weights imply depth {ckpt_depth}"
+        )
+    fc_w = sd.get("fc.weight")
+    if fc_w is None:
+        raise ValueError("Checkpoint model state_dict is missing 'fc.weight'")
+    ckpt_classes = int(fc_w.shape[0])
+    if cfg.num_classes != ckpt_classes:
+        raise ValueError(
+            f"num_classes mismatch: current config has {cfg.num_classes}, "
+            f"checkpoint classifier has {ckpt_classes}"
+        )
+
+
+def restore_rng_from_checkpoint(ckpt: dict, device: torch.device) -> None:
+    """Restore PyTorch (and CUDA if applicable) RNG state saved in a training checkpoint."""
+    rs = ckpt.get("torch_rng_state")
+    if rs is not None:
+        torch.set_rng_state(rs)
+    cuda_rs = ckpt.get("cuda_rng_state")
+    if cuda_rs is not None and device.type == "cuda" and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(cuda_rs)
+    elif cuda_rs is None and device.type == "cuda" and torch.cuda.is_available():
+        print("Warning: checkpoint has no CUDA RNG state; CUDA randomness may diverge.")
+
+
 def _rng_checkpoint_payload() -> dict[str, typing.Any]:
     out: dict[str, typing.Any] = {"torch_rng_state": torch.get_rng_state()}
     if torch.cuda.is_available():
@@ -139,15 +200,18 @@ def save_checkpoint(
 def train(cfg: Config, resume: str | None = None) -> TrainResult:
     """Train ``make_resnet_cifar(cfg.model_depth)`` on CIFAR-10; return paths and best accuracy."""
     t_wall0 = time.perf_counter()
-    run_dir, best_path, last_path = setup_run(cfg)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    run_dir, best_path, last_path, is_new_run = prepare_run_paths(cfg, resume)
     print(f"Run dir: {run_dir}")
+    if not is_new_run:
+        print("Resuming in existing run directory (metrics append, RNG restored from checkpoint).")
 
     set_seed(cfg.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     provenance = collect_run_provenance(device)
-    write_run_info(os.path.join(run_dir, "run_info.json"), dataclasses.asdict(cfg), provenance)
+    if is_new_run:
+        write_run_info(os.path.join(run_dir, "run_info.json"), dataclasses.asdict(cfg), provenance)
 
     generator = make_generator(cfg.seed)
     train_loader, test_loader = get_dataloaders(
@@ -174,14 +238,16 @@ def train(cfg: Config, resume: str | None = None) -> TrainResult:
     if resume is not None:
         # Full checkpoint contains arbitrary Python objects in optimizer state; safe=True would reject.
         ckpt = torch.load(resume, map_location=device, weights_only=False)
+        validate_checkpoint_against_config(ckpt, cfg)
         model.load_state_dict(ckpt["model"])
         optimizer.load_state_dict(ckpt["optimizer"])
         scheduler.load_state_dict(ckpt["scheduler"])
-        best_acc = ckpt["best_acc"]
-        start_epoch = ckpt["epoch"] + 1
+        best_acc = float(ckpt["best_acc"])
+        start_epoch = int(ckpt["epoch"]) + 1
+        restore_rng_from_checkpoint(ckpt, device)
         print(f"Resumed from epoch {ckpt['epoch']} (best acc {best_acc:.2f}%)")
 
-    logger = Logger(run_dir)
+    logger = Logger(run_dir, append_metrics=not is_new_run)
     try:
         for epoch in range(start_epoch, cfg.epochs + 1):
             train_loss, imgs_per_sec = train_epoch(
