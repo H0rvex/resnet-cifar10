@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .ruff_cache/
 .pytest_cache/
+.coverage
+coverage.xml
 # Local venvs
 .venv/
 venv/
@@ -12,5 +14,3 @@ runs/
 # OS/editor
 .DS_Store
 .vscode/
-
-RESNET_REFACTOR.md
