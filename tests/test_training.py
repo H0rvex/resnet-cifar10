@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from resnet_cifar10.model import ResNet
+from resnet_cifar10.model import make_resnet_cifar
 from resnet_cifar10.trainer import evaluate, train_epoch
 from resnet_cifar10.utils.seeding import set_seed
 
@@ -22,7 +22,7 @@ def _make_loader(seed: int = 0) -> DataLoader:
 def _build(seed: int = 42) -> tuple:
     set_seed(seed)
     device = torch.device("cpu")
-    model = ResNet().to(device)
+    model = make_resnet_cifar(20).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=_LR)
     loss_fn = nn.CrossEntropyLoss()
     scaler = torch.amp.GradScaler("cpu", enabled=False)
