@@ -8,6 +8,7 @@ artifacts/eval.json           -- all metrics as JSON
 """
 
 import argparse
+import dataclasses
 import json
 import os
 
@@ -19,11 +20,12 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np
 import seaborn as sns
 import torch
+import torch.nn as nn
 from thop import profile as thop_profile
 
 from resnet_cifar10.config import Config
 from resnet_cifar10.dataset import get_dataloaders
-from resnet_cifar10.model import ResNet
+from resnet_cifar10.model import infer_model_depth_from_state_dict, make_resnet_cifar
 
 CLASSES = (
     "airplane",
@@ -51,18 +53,29 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def load_model(path: str, device: torch.device) -> tuple[ResNet, Config]:
+def _config_from_checkpoint(ckpt: dict, state_dict: dict[str, torch.Tensor]) -> Config:
+    raw = ckpt.get("config") or {}
+    base = {f.name: f.default for f in dataclasses.fields(Config)}
+    base.update(raw)
+    if "model_depth" not in raw:
+        base["model_depth"] = infer_model_depth_from_state_dict(state_dict)
+    return Config(**base)
+
+
+def load_model(path: str, device: torch.device) -> tuple[nn.Module, Config]:
+    # weights_only=False: training checkpoints include config/optimizer dicts, not tensors-only.
     ckpt = torch.load(path, map_location=device, weights_only=False)
-    cfg = Config(**ckpt["config"]) if "config" in ckpt else Config()
-    model = ResNet(num_classes=cfg.num_classes).to(device)
-    model.load_state_dict(ckpt["model"])
+    state_dict = ckpt["model"]
+    cfg = _config_from_checkpoint(ckpt, state_dict)
+    model = make_resnet_cifar(cfg.model_depth, cfg.num_classes).to(device)
+    model.load_state_dict(state_dict)
     model.eval()
     return model, cfg
 
 
 @torch.no_grad()
 def run_inference(
-    model: ResNet,
+    model: nn.Module,
     loader: torch.utils.data.DataLoader,
     device: torch.device,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -74,7 +87,7 @@ def run_inference(
     return torch.cat(all_preds).numpy(), torch.cat(all_labels).numpy()
 
 
-def count_params_and_macs(model: ResNet, device: torch.device) -> tuple[float, float]:
+def count_params_and_macs(model: nn.Module, device: torch.device) -> tuple[float, float]:
     dummy = torch.zeros(1, 3, 32, 32, device=device)
     macs, params = thop_profile(model, inputs=(dummy,), verbose=False)
     return params / 1e6, macs / 1e6
@@ -83,8 +96,9 @@ def count_params_and_macs(model: ResNet, device: torch.device) -> tuple[float, f
 def compute_metrics(
     preds: np.ndarray,
     labels: np.ndarray,
-    model: ResNet,
+    model: nn.Module,
     device: torch.device,
+    cfg: Config,
 ) -> dict:
     n = len(CLASSES)
     top1 = float((preds == labels).mean() * 100)
@@ -106,6 +120,7 @@ def compute_metrics(
         "confusion_matrix": conf.tolist(),
         "params_M": round(params_m, 4),
         "macs_M": round(macs_m, 2),
+        "model_depth": cfg.model_depth,
     }
 
 
@@ -170,13 +185,14 @@ def main() -> None:
 
     print(f"Loading checkpoint: {args.checkpoint}")
     model, cfg = load_model(args.checkpoint, device)
+    print(f"model_depth={cfg.model_depth}  num_classes={cfg.num_classes}")
 
     _, test_loader = get_dataloaders(args.data_dir, args.batch_size, args.num_workers)
 
     print("Running inference…")
     preds, labels = run_inference(model, test_loader, device)
 
-    metrics = compute_metrics(preds, labels, model, device)
+    metrics = compute_metrics(preds, labels, model, device, cfg)
 
     print(f"\nTop-1 accuracy : {metrics['top1_acc']:.2f}%")
     print(f"Params         : {metrics['params_M']:.3f} M")
