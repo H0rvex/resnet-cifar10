@@ -1,5 +1,5 @@
-# ResNet-20 on CIFAR-10 — SGD + cosine recipe (He et al. 2015 baseline)
-model_depth: 20
+# ResNet-32 (n=5 blocks per stage) — same optimization recipe as resnet20.yaml
+model_depth: 32
 epochs: 200
 batch_size: 128
 lr: 0.1
